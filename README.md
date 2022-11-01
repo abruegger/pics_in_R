@@ -7,4 +7,4 @@ The final stimuli are [in the folder image/final ](https://github.com/abruegger/
 
 The pictures for this study are from Adobe Stock.
 
-More background about this project can be found in this blogpost .... 
+More background about this project can be found in this [blogpost](https://www.adrianbruegger.com/post/create-images/). 

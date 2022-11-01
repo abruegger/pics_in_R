@@ -15,17 +15,18 @@
 # 4. combined: traffic + CO2 emissions
 
 
-## The final image will contain 4 elements with varying content.
-
-# A) header with product name and origin
-# B) product image (from Adobe Stock)
-# C) label (or no label in the control condition)
-# D) text indicating the carbon emissions of the product (in condition "absolute" and "combined")
+## Depending on the experimental condition, the images will consist of 1-3 elements with varying content:  
+  
+# 1) Header with product name, origin, and product image
+# 2) Label (or no label in the control condition)
+# 3) Text indicating the carbon emissions of the product (in the conditions "absolute" and "combined")
 
 ## Technical note
-# Because the height of the product image varies, the three parts cannot be directly put together. 
-# To do that, it would be necessary to use a base image / layer with a fixed size and the function image_composite 
-# The solution now is to create the base part consisting of A) and B) and to then to separately create and add C) & D).
+# To be able to combine these elements into a single image, each part will be saved as an image. Magick can combine such elements in different ways. 
+# If the three elements had consistently the same dimensions (height and width), one could simply
+# create a background / base layer with fixed dimensions and then "paste" the elements where they belong with the r function 'image_composite'.
+# However, the height of the product image varies and this simple way won't work; the three parts cannot be directly put together. 
+# The alternative approach that I chose is to first create the header. Then the parts that include the label and the text are created and added to the header.
 
 
 
@@ -42,18 +43,18 @@ pacman::p_load("tidyverse","readxl", "stringr","magick")
 
 df <- readxl::read_excel("../product_info.xlsx", sheet = "stimuli_data")
 
-# create path to product images
+# indicate path to product images
 df$image_path <- stringr::str_c("../images/originals/products/",df$image_product)
   
-# update path to label
+# update path to label templates
 df$label_path <- stringr::str_c("../images/originals/labels/",df$label,"_V2_1.png")
 
 #################################################
-## A) and B) create header  ----
+## Create header  ----
 #################################################
 
-# create head / basic image consisting of product name (A) and image (B)
-# lapply applies the function defined below for all elements / rows in the column "image_path"
+# create head / basic image consisting of product name and image 
+# lapply applies the function defined below for all elements / rows in the column "image_path" (could also be a different column with unique information)
 img_lst <- lapply(seq_along(df$image_path), function(i){
   # create white background
   background <- image_blank(width = 770, height = 160, color = "grey25")
@@ -83,39 +84,18 @@ img_lst <- lapply(seq_along(df$image_path), function(i){
 
 
 ###########################################################################
-## C) prepare foot for experimental condition "traffic" (feet without CO2) 
-###########################################################################
-
-img_lst <- lapply(seq_along(df$product_en), function(i){
-  product_en <- df$product_en[[i]]
-  image_read(df$label_path[[i]]) %>% 
-    image_background("grey25") %>% 
-    image_border("grey25", "80x10") %>% # add border so that image will end up smaller in the final version
-    image_crop(geometry="1200x445",repage=TRUE) %>% # crop bottom to make picture less high
-    image_write(path = paste0("../images/traffic/", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
-})
-
-# combine image and foot 
-img_lst <- lapply(seq_along(df$image_path), function(i){
-  product_en <- df$product_en[[i]]
-  header <- image_read(path = paste0("../images/final/control_", df$product_en[[i]], ".png")) 
-  label  <- image_read(path = paste0("../images/traffic/", df$product_en[[i]], ".png")) 
-  img <- c(header,label)
-  image_append(image_scale(img,"770"), stack = TRUE) %>% 
-    image_write(path = paste0("../images/final/", "traffic_", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
-})
-
-
-
-###########################################################################
 # create part for single foot ----
 ###########################################################################
 
+# very similar logic as above
 img_lst <- lapply(seq_along(df$image_path), function(i){
+  # get relevant information
   product_en <- df$product_en[[i]]
   image_read("../images/originals/labels/White_V2.png")  %>% 
+    # print information about CO2 in correct place
     image_annotate(paste0(sprintf("%.1f",round(df$co2[[i]], 1))), size = 83, color = "black", weight=700, 
                    location = "+73+150",font= "Helvetica") %>% 
+    # add constant information kg/CO2
     image_annotate(" kg\nCO2", size = 55, color = "black", weight=700, 
                    location = "+89+230",font= "Helvetica") %>% 
     image_background("grey25") %>% 
@@ -123,6 +103,7 @@ img_lst <- lapply(seq_along(df$image_path), function(i){
     image_write(path = paste0("../images/absolute/", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
 })
 
+# move text for large numbers, otherwise it doesn't appear in the correct place (outside the foot)
 # overwrite  products with co2 >=10
 df_big <- df %>% filter(co2 >=10)
 img_lst <- lapply(seq_along(df_big$image_path), function(i){
@@ -145,15 +126,41 @@ img_lst <- lapply(seq_along(df$image_path), function(i){
   label  <- image_read(path = paste0("../images/absolute/", df$product_en[[i]], ".png")) 
   img <- c(header,label)
   image_append(image_scale(img,"770"), stack = TRUE) %>% 
-  image_write(path = paste0("../images/final/", "absolute_", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
+    image_write(path = paste0("../images/final/", "absolute_", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
+})
+
+
+
+###########################################################################
+## prepare foot for the experimental condition "traffic" (feet without CO2) 
+###########################################################################
+
+img_lst <- lapply(seq_along(df$product_en), function(i){
+  product_en <- df$product_en[[i]]
+  image_read(df$label_path[[i]]) %>% 
+    image_background("grey25") %>% 
+    image_border("grey25", "80x10") %>% # add border so that image will end up smaller in the final version
+    image_crop(geometry="1200x445",repage=TRUE) %>% # crop bottom to make picture less high
+    image_write(path = paste0("../images/traffic/", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
+})
+
+# combine image and foot and save
+img_lst <- lapply(seq_along(df$image_path), function(i){
+  product_en <- df$product_en[[i]]
+  header <- image_read(path = paste0("../images/final/control_", df$product_en[[i]], ".png")) 
+  label  <- image_read(path = paste0("../images/traffic/", df$product_en[[i]], ".png")) 
+  img <- c(header,label)
+  image_append(image_scale(img,"770"), stack = TRUE) %>% 
+    image_write(path = paste0("../images/final/", "traffic_", product_en, ".png"), format = "png") #, quality = 50) #, compression = 
 })
 
 
 #################################################
-## C) prepare foot for experimental condition "combined" (feet with CO2)
+## prepare foot for experimental condition "combined" (feet with CO2)
 #################################################
 
-# Different functions for each label because text is placed on different positions
+# Note that the images need to be created separately for each label to ensure that 
+# the text is placed on the correct position (different for each enlarged foot).
 
 # do A - Labels
 df_A <- df %>% filter(label=="A")
