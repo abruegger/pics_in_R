@@ -3,7 +3,7 @@ Use R to create complex visual stimuli for an experiment. The stimuli represent 
 - Text about the product  
 - CO2 label
 
-The final stimuli are [in the folder image/final ](../tree/master/images/final).
+The final stimuli are [in the folder image/final ](https://github.com/abruegger/pics_in_R/tree/master/images/final).
 
 The pictures for this study are from Adobe Stock.
 
